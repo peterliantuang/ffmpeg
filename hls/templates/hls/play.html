@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Video Player</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+            height: 100vh; /* Full height of the viewport */
+        }
+
+        h1 {
+            margin: 20px 0;
+            font-family: Arial, sans-serif;
+            color: #333;
+        }
+
+        #videoPlayer {
+            width: 95%;  /* Set the video width to 95% of the window width */
+            max-width: 800px; /* Optional: Set a max width */
+            height: 80%;  /* Set the video height to 80% of the viewport height */
+            border: 2px solid #ccc; /* Optional: Add border */
+            border-radius: 8px; /* Optional: Rounded corners */
+            background-color: #000; /* Background color for the video area */
+        }
+
+        #videoQuality {
+            margin: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            font-size: 16px;
+        }
+
+        select:focus {
+            outline: none; /* Remove default focus outline */
+            border-color: #007bff; /* Change border color on focus */
+            box-shadow: 0 0 5px rgba(0, 123, 255, 0.5); /* Add shadow effect */
+        }
+
+        /* Custom styles for video-js controls */
+        .video-js .vjs-control {
+            background-color: rgba(0, 0, 0, 0.7); /* Semi-transparent background for controls */
+            color: white; /* Control text color */
+            border-radius: 5px; /* Rounded corners for controls */
+        }
+
+        .video-js .vjs-play-control,
+        .video-js .vjs-volume-panel {
+            color: #007bff; /* Control button color */
+        }
+
+        /* Hover effects for control buttons */
+        .video-js .vjs-control:hover {
+            background-color: rgba(0, 0, 0, 0.9); /* Darker background on hover */
+        }
+    </style>
+    <!-- Video.js CSS -->
+    <link href="https://vjs.zencdn.net/7.17.0/video-js.css" rel="stylesheet"/>
+    <!-- Video.js Library -->
+    <script src="https://vjs.zencdn.net/7.17.0/video.min.js"></script>
+    <!-- HLS.js Library for browsers that do not support HLS natively -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.1.5/hls.min.js"></script>
+</head>
+<body>
+    <h1>Video id is {{ id }}</h1>
+    <div>Available Qualities: {{ video.hls_playlists }}</div>
+    <video id="videoPlayer" class="video-js vjs-default-skin" controls autoplay>
+        <source id="videoSource" src="http://localhost:8000/{{ video.hls_playlists.720p|slice:'1:' }}" type="application/x-mpegURL">
+        Your browser does not support the video tag.
+    </video>
+
+    <select id="videoQuality">
+        <option value="240p">240p</option>
+        <option value="360p" selected>360p</option>
+        <option value="480p">480p</option>
+        <option value="720p">720p</option>
+    </select>
+
+    <script>
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoSource = document.getElementById('videoSource');
+        const qualitySelect = document.getElementById('videoQuality');
+
+        // Create a JavaScript object to hold the quality URLs
+        const hlsPlaylists = {
+            "240p": "http://localhost:8000{{ video.hls_playlists.240p|slice:'1:' }}",  
+            "360p": "http://localhost:8000{{ video.hls_playlists.360p|slice:'1:' }}",  
+            "480p": "http://localhost:8000{{ video.hls_playlists.480p|slice:'1:' }}",  
+            "720p": "http://localhost:8000{{ video.hls_playlists.720p|slice:'1:' }}"   
+        };
+
+        qualitySelect.addEventListener('change', function() {
+            const selectedQuality = this.value;  // Get the selected quality
+            videoSource.src = hlsPlaylists[selectedQuality];  // Use the JS object to get the URL
+            
+            if (Hls.isSupported()) {
+                const hls = new Hls();
+                hls.loadSource(videoSource.src);
+                hls.attachMedia(videoPlayer);
+                hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                    videoPlayer.play(); // Automatically play after loading the new source
+                });
+            } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+                // For Safari, you can just use the video element
+                videoPlayer.src = videoSource.src;
+                videoPlayer.addEventListener('loadedmetadata', function() {
+                    videoPlayer.play();
+                });
+            }
+
+            videoPlayer.load();  // Load the new video source
+        });
+
+        // Error handling for video playback
+        videoPlayer.addEventListener('error', function(event) {
+            console.error('Error occurred: ', event);
+        });
+
+        // HLS.js Initialization for browsers that don't support HLS natively
+        if (Hls.isSupported()) {
+            const hls = new Hls();
+            hls.loadSource(videoSource.src);
+            hls.attachMedia(videoPlayer);
+            hls.on(Hls.Events.MANIFEST_PARSED, function() {
+                videoPlayer.play();
+            });
+        } else if (videoPlayer.canPlayType('application/vnd.apple.mpegurl')) {
+            // For Safari, you can just use the video element
+            videoPlayer.src = videoSource.src;
+            videoPlayer.addEventListener('loadedmetadata', function() {
+                videoPlayer.play();
+            });
+        }
+    </script>
+</body>
+</html>
